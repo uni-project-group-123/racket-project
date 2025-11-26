@@ -1,0 +1,19 @@
+music-portal/
+│
+├── server.rkt
+│
+├── utils/
+│   └── web-utils.rkt
+│
+├── database/
+│   └── db.rkt
+│
+├── models/
+│   ├── users.rkt
+│   └── concerts.rkt
+│
+└── controllers/
+    ├── home.rkt
+    ├── auth.rkt
+    ├── bands.rkt
+    └── fans.rkt
