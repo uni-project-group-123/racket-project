@@ -9,14 +9,11 @@
 
 (define (fan-dashboard req)
   (render-page
-   '(div
+   `(div
      (h1 "Your Fan Dashboard")
-     (ul
-      (li (a ((href "#")) "Selected Concerts")) ; will need to
-      (li (a ((href "#")) "Browse Concerts")) ; will route to browse-concert
-      (li (a ((href "#")) "Profile settings")) ; can sort this out if we have time
-      (li (a ((href "/")) "Sign Out")) ; back to home
-      )
-     )
-   )
-  )
+     (p ((class "lead")) "Quick access to your upcoming concerts, saved events and profile settings.")
+     (div ((class "nav"))
+          (a ((href "#" ) (class "btn btn-outline")) "Selected Concerts")
+          (a ((href "#" ) (class "btn btn-outline")) "Browse Concerts")
+          (a ((href "#" ) (class "btn btn-outline")) "Profile settings")
+          (a ((href "/" ) (class "btn btn-primary")) "Sign Out")))))

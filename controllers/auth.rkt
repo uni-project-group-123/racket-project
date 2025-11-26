@@ -6,8 +6,7 @@
 (require "../utils/web-utils.rkt"
          "../models/users.rkt"
          "./fan-dashboard.rkt"
-         "./creator-dashboard.rkt"
-         )
+         "./creator-dashboard.rkt")
 
 ;; =====================
 ;;     REGISTER PAGE
@@ -17,16 +16,22 @@
   (render-page
    `(div
      (h1 "Create an account")
+     (p ((class "lead")) "Join Music Portal — create an account as a fan or creator.")
      (form ((action "/register") (method "post"))
-           (p "Username:"
-              (input ((name "name"))))
-           (p "Password:"
-              (input ((name "password") (type "password"))))
-           (p "Account type:"
-              (select ((name "type"))
-                      (option ((value "fan")) "Fan")
-                      (option ((value "creator")) "Creator")))
-           (p (input ((type "submit") (value "Register"))))))))
+           (p
+            (label "Username:")
+            (input ((name "name"))))
+           (p
+            (label "Password:")
+            (input ((name "password") (type "password"))))
+           (p
+            (label "Account type:")
+            (select ((name "type"))
+                    (option ((value "fan")) "Fan")
+                    (option ((value "creator")) "Creator")))
+           (div ((class "actions"))
+                (button ((type "submit") (class "btn btn-primary")) "Register")
+                (a ((href "/login") (class "btn btn-outline")) "Have an account? Log in"))))))
 
 (define (handle-register req)
   (define name (get-param req 'name))
@@ -37,8 +42,10 @@
     [(or (not name) (not password) (not type)
          (string=? name "") (string=? password "") (string=? type ""))
      (render-page
-      `(div (h1 "Error: fill in all fields")
-            (a ((href "/register")) "Back")))]
+      `(div
+        (h1 "Error: fill in all fields")
+        (div ((class "actions"))
+             (a ((href "/register") (class "btn btn-outline")) "Back to register"))))]
 
     [else
      (with-handlers ([exn:fail?
@@ -46,13 +53,16 @@
                         (render-page
                          `(div
                            (h1 "Error: user already exists?")
-                           (a ((href "/register")) "Back"))))])
+                           (div ((class "actions"))
+                                (a ((href "/register") (class "btn btn-outline")) "Back to register")))) )])
 
        (db-create-user! name password type)
        (render-page
         `(div
           (h1 "Account created!")
-          (a ((href "/login")) "Go to login"))))]))
+          (p ((class "lead")) "Your account has been created — you can now log in.")
+          (div ((class "actions"))
+               (a ((href "/login") (class "btn btn-primary")) "Go to login")))))]))
 
 ;; =====================
 ;;       LOGIN PAGE
@@ -62,12 +72,17 @@
   (render-page
    `(div
      (h1 "Log in")
+     (p ((class "lead")) "Welcome back — enter your credentials to continue.")
      (form ((action "/login") (method "post"))
-           (p "Username:"
-              (input ((name "name"))))
-           (p "Password:"
-              (input ((name "password") (type "password"))))
-           (p (input ((type "submit") (value "Log in"))))))))
+           (p
+            (label "Username:")
+            (input ((name "name"))))
+           (p
+            (label "Password:")
+            (input ((name "password") (type "password"))))
+           (div ((class "actions"))
+                (button ((type "submit") (class "btn btn-primary")) "Log in")
+                (a ((href "/register") (class "btn btn-outline")) "Create account"))))))
 
 (define (handle-login req)
   (define name (get-param req 'name))
@@ -78,13 +93,17 @@
   (cond
     [(not u)
      (render-page
-      `(div (h1 "User not found")
-            (a ((href "/login")) "Back")))]
+      `(div
+        (h1 "User not found")
+        (div ((class "actions"))
+             (a ((href "/login") (class "btn btn-outline")) "Back to login")) ))]
 
     [(not (string=? password (user-password u)))
      (render-page
-      `(div (h1 "Incorrect password")
-            (a ((href "/login")) "Try again")))]
+      `(div
+        (h1 "Incorrect password")
+        (div ((class "actions"))
+             (a ((href "/login") (class "btn btn-outline")) "Try again")) ))]
 
     [else
      (cond

@@ -9,14 +9,11 @@
 
 (define (creator-dashboard req)
   (render-page
-   '(div
+   `(div
      (h1 "Your Creator Dashboard")
-     (ul
-      (li (a ((href "#")) "Create Concert Listing")) ; Post to concert db
-      (li (a ((href "#")) "Manage Concert Listings")) ; Get and post to concert db
-      (li (a ((href "#")) "Profile settings")) ; can sort this out if we have time
-      (li (a ((href "/")) "Sign Out")) ; back to home
-      )
-     )
-   )
-  )
+     (p ((class "lead")) "Manage your concerts, listings and profile — tools for creators.")
+     (div ((class "nav"))
+          (a ((href "#" ) (class "btn btn-primary")) "Create Concert Listing")
+          (a ((href "#" ) (class "btn btn-outline")) "Manage Concert Listings")
+          (a ((href "#" ) (class "btn btn-outline")) "Profile settings")
+          (a ((href "/" ) (class "btn btn-outline")) "Sign Out")))))
