@@ -4,7 +4,10 @@
          login-page handle-login)
 
 (require "../utils/web-utils.rkt"
-         "../models/users.rkt")
+         "../models/users.rkt"
+         "./fan-dashboard.rkt"
+         "./creator-dashboard.rkt"
+         )
 
 ;; =====================
 ;;     REGISTER PAGE
@@ -13,17 +16,17 @@
 (define (register-page req)
   (render-page
    `(div
-      (h1 "Create an account")
-      (form ((action "/register") (method "post"))
-        (p "Username:"
-           (input ((name "name"))))
-        (p "Password:"
-           (input ((name "password") (type "password"))))
-        (p "Account type:"
-           (select ((name "type"))
-             (option ((value "fan")) "Fan")
-             (option ((value "creator")) "Creator")))
-        (p (input ((type "submit") (value "Register"))))))))
+     (h1 "Create an account")
+     (form ((action "/register") (method "post"))
+           (p "Username:"
+              (input ((name "name"))))
+           (p "Password:"
+              (input ((name "password") (type "password"))))
+           (p "Account type:"
+              (select ((name "type"))
+                      (option ((value "fan")) "Fan")
+                      (option ((value "creator")) "Creator")))
+           (p (input ((type "submit") (value "Register"))))))))
 
 (define (handle-register req)
   (define name (get-param req 'name))
@@ -38,18 +41,18 @@
             (a ((href "/register")) "Back")))]
 
     [else
-     (with-handlers ([exn:fail? 
+     (with-handlers ([exn:fail?
                       (λ(e)
                         (render-page
                          `(div
-                            (h1 "Error: user already exists?")
-                            (a ((href "/register")) "Back"))))])
+                           (h1 "Error: user already exists?")
+                           (a ((href "/register")) "Back"))))])
 
        (db-create-user! name password type)
        (render-page
         `(div
-           (h1 "Account created!")
-           (a ((href "/login")) "Go to login"))))]))
+          (h1 "Account created!")
+          (a ((href "/login")) "Go to login"))))]))
 
 ;; =====================
 ;;       LOGIN PAGE
@@ -58,13 +61,13 @@
 (define (login-page req)
   (render-page
    `(div
-      (h1 "Log in")
-      (form ((action "/login") (method "post"))
-        (p "Username:"
-           (input ((name "name"))))
-        (p "Password:"
-           (input ((name "password") (type "password"))))
-        (p (input ((type "submit") (value "Log in"))))))))
+     (h1 "Log in")
+     (form ((action "/login") (method "post"))
+           (p "Username:"
+              (input ((name "name"))))
+           (p "Password:"
+              (input ((name "password") (type "password"))))
+           (p (input ((type "submit") (value "Log in"))))))))
 
 (define (handle-login req)
   (define name (get-param req 'name))
@@ -84,13 +87,12 @@
             (a ((href "/login")) "Try again")))]
 
     [else
-     (render-page
-      `(div
-         (h1 ,(format "Welcome, ~a!" (user-name u)))
-         (p ,(format "You are logged in as: ~a" (user-type u)))
-
-         ,(cond
-            [(string=? (user-type u) "creator")
-             `(a ((href "/creator/dashboard")) "Creator Dashboard")]
-            [else
-             `(a ((href "/fan/dashboard")) "Fan Dashboard")])))]))
+     (cond
+       [(string=? (user-type u) "creator")
+        (render-page
+         `(div (h1 "Redirecting to Creator Dashboard...")
+               (meta ((http-equiv "refresh") (content "0;url=/creator-dashboard")))))]
+       [else
+        (render-page
+         `(div (h1 "Redirecting to Fan Dashboard...")
+               (meta ((http-equiv "refresh") (content "0;url=/fan-dashboard")))))])]))
