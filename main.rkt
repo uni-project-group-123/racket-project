@@ -5,7 +5,9 @@
 
          "database/db.rkt"
          "controllers/home.rkt"
-         "controllers/auth.rkt")
+         "controllers/auth.rkt"
+         "controllers/fan-dashboard.rkt"
+         "controllers/creator-dashboard.rkt")
 
 ;; ============================
 ;;      ROUTING
@@ -13,15 +15,19 @@
 
 (define-values (dispatch dispatcher)
   (dispatch-rules
-    [("") home-page]
+   [("") home-page]
 
-    [("register") #:method "get" register-page]
-    [("register") #:method "post" handle-register]
+   [("register") #:method "get" register-page]
+   [("register") #:method "post" handle-register]
 
-    [("login") #:method "get" login-page]
-    [("login") #:method "post" handle-login]
+   [("login") #:method "get" login-page]
+   [("login") #:method "post" handle-login]
 
-    [else not-found-page]))
+   [("fan-dashboard") #:method "get" fan-dashboard]
+
+   [("creator-dashboard") #:method "get" creator-dashboard]
+
+   [else not-found-page]))
 
 ;; ============================
 ;;      SERVER START
