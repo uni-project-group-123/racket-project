@@ -4,7 +4,8 @@
          user-id user-name user-password user-type
          row->user
          db-create-user!
-         db-find-user-by-name)
+         db-find-user-by-name
+         db-find-user-by-id)
 
 (require "../database/db.rkt"
          db)
@@ -30,6 +31,17 @@
       "SELECT id, name, password, type
        FROM users WHERE name = ?;"
       name))
+  (if (null? rows)
+      #f
+      (row->user (first rows))))
+
+(define (db-find-user-by-id id)
+  (define db (get-db))
+  (define rows
+    (query-rows db
+      "SELECT id, name, password, type
+       FROM users WHERE id = ?;"
+      id))
   (if (null? rows)
       #f
       (row->user (first rows))))

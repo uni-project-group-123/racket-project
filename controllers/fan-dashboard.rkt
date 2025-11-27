@@ -16,4 +16,4 @@
           (a ((href "#" ) (class "btn btn-outline")) "Selected Concerts")
           (a ((href "/browse" ) (class "btn btn-outline")) "Browse Concerts")
           (a ((href "#" ) (class "btn btn-outline")) "Profile settings")
-          (a ((href "/" ) (class "btn btn-primary")) "Sign Out")))))
+          (a ((href "/logout" ) (class "btn btn-primary")) "Sign Out")))))
