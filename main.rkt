@@ -7,7 +7,8 @@
          "controllers/home.rkt"
          "controllers/auth.rkt"
          "controllers/fan-dashboard.rkt"
-         "controllers/creator-dashboard.rkt")
+         "controllers/creator-dashboard.rkt"
+         "controllers/browse.rkt")
 
 ;; ============================
 ;;      ROUTING
@@ -26,6 +27,8 @@
    [("fan-dashboard") #:method "get" fan-dashboard]
 
    [("creator-dashboard") #:method "get" creator-dashboard]
+
+   [("browse") #:method "get" browse]
 
    [else not-found-page]))
 

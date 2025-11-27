@@ -14,6 +14,6 @@
      (p ((class "lead")) "Quick access to your upcoming concerts, saved events and profile settings.")
      (div ((class "nav"))
           (a ((href "#" ) (class "btn btn-outline")) "Selected Concerts")
-          (a ((href "#" ) (class "btn btn-outline")) "Browse Concerts")
+          (a ((href "/browse" ) (class "btn btn-outline")) "Browse Concerts")
           (a ((href "#" ) (class "btn btn-outline")) "Profile settings")
           (a ((href "/" ) (class "btn btn-primary")) "Sign Out")))))
