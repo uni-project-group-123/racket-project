@@ -8,7 +8,8 @@
          "../models/users.rkt"
          "./fan-dashboard.rkt"
          "./creator-dashboard.rkt"
-         web-server/http)
+         web-server/http
+         racket/date)
 
 ;; =====================
 ;;     REGISTER PAGE
@@ -57,9 +58,11 @@
                            (h1 "Error: user already exists?")
                            (div ((class "actions"))
                                 (a ((href "/register") (class "btn btn-outline")) "Back to register")))) )])
-       (db-create-user! name password type)
-       (define created (db-find-user-by-name name))
-       (define user-cookie (make-cookie "uid" (number->string (user-id created)) #:path "/"))
+      (db-create-user! name password type)
+      (define created (db-find-user-by-name name))
+      ;; Persistent cookie (~30 days)
+      (define user-cookie (make-cookie "uid" (number->string (user-id created))
+                  #:path "/" #:http-only? #t #:max-age (* 60 60 24 30)))
        (cond
            [(string=? type "creator")
             (redirect-303 "/creator-dashboard" #:cookies (list user-cookie))]
@@ -108,7 +111,9 @@
              (a ((href "/login") (class "btn btn-outline")) "Try again")) ))]
 
         [else
-         (define user-cookie (make-cookie "uid" (number->string (user-id u)) #:path "/"))
+         ;; Persistent cookie (~30 days)
+         (define user-cookie (make-cookie "uid" (number->string (user-id u))
+                 #:path "/" #:http-only? #t #:max-age (* 60 60 24 30)))
          (cond
        [(string=? (user-type u) "creator")
         (redirect-303 "/creator-dashboard" #:cookies (list user-cookie))]
@@ -120,6 +125,6 @@
 ;; =====================
 
 (define (handle-logout req)
-  ;; Clear cookie by setting empty value; get-cookie treats empty as logged-out.
-  (define cleared (make-cookie "uid" "" #:path "/"))
+  ;; Clear cookie by expiring it in the past
+  (define cleared (make-cookie "uid" "" #:path "/" #:http-only? #t #:expires (seconds->date 0)))
   (redirect-303 "/login" #:cookies (list cleared)))
