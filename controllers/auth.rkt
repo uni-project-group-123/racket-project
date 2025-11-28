@@ -1,12 +1,14 @@
 #lang racket
 
 (provide register-page handle-register
-         login-page handle-login)
+         login-page handle-login
+         handle-logout)
 
 (require "../utils/web-utils.rkt"
          "../models/users.rkt"
          "./fan-dashboard.rkt"
-         "./creator-dashboard.rkt")
+         "./creator-dashboard.rkt"
+         web-server/http)
 
 ;; =====================
 ;;     REGISTER PAGE
@@ -55,14 +57,14 @@
                            (h1 "Error: user already exists?")
                            (div ((class "actions"))
                                 (a ((href "/register") (class "btn btn-outline")) "Back to register")))) )])
-
        (db-create-user! name password type)
-       (render-page
-        `(div
-          (h1 "Account created!")
-          (p ((class "lead")) "Your account has been created — you can now log in.")
-          (div ((class "actions"))
-               (a ((href "/login") (class "btn btn-primary")) "Go to login")))))]))
+       (define created (db-find-user-by-name name))
+       (define user-cookie (make-cookie "uid" (number->string (user-id created)) #:path "/"))
+       (cond
+           [(string=? type "creator")
+            (redirect-303 "/creator-dashboard" #:cookies (list user-cookie))]
+           [else
+            (redirect-303 "/fan-dashboard" #:cookies (list user-cookie))]))]))
 
 ;; =====================
 ;;       LOGIN PAGE
@@ -105,13 +107,19 @@
         (div ((class "actions"))
              (a ((href "/login") (class "btn btn-outline")) "Try again")) ))]
 
-    [else
-     (cond
+        [else
+         (define user-cookie (make-cookie "uid" (number->string (user-id u)) #:path "/"))
+         (cond
        [(string=? (user-type u) "creator")
-        (render-page
-         `(div (h1 "Redirecting to Creator Dashboard...")
-               (meta ((http-equiv "refresh") (content "0;url=/creator-dashboard")))))]
+        (redirect-303 "/creator-dashboard" #:cookies (list user-cookie))]
        [else
-        (render-page
-         `(div (h1 "Redirecting to Fan Dashboard...")
-               (meta ((http-equiv "refresh") (content "0;url=/fan-dashboard")))))])]))
+        (redirect-303 "/fan-dashboard" #:cookies (list user-cookie))])]))
+
+;; =====================
+;;        LOGOUT
+;; =====================
+
+(define (handle-logout req)
+  ;; Clear cookie by setting empty value; get-cookie treats empty as logged-out.
+  (define cleared (make-cookie "uid" "" #:path "/"))
+  (redirect-303 "/login" #:cookies (list cleared)))
