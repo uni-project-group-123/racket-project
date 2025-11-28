@@ -12,7 +12,8 @@
          "controllers/fan-dashboard.rkt"
          "controllers/creator-dashboard.rkt"
          "controllers/browse.rkt"
-         "controllers/concerts.rkt")
+         "controllers/concerts.rkt"
+         "controllers/creator-settings.rkt")
 
 ;; ============================
 ;;      ROUTING
@@ -31,14 +32,15 @@
    [("fan-dashboard") #:method "get" fan-dashboard]
 
    [("creator-dashboard") #:method "get" creator-dashboard]
-  [("logout") #:method "get" handle-logout]
+   [("creator-settings") #:method "get" creator-settings]
+   [("logout") #:method "get" handle-logout]
 
    [("create-concert") #:method "get" create-concert-form]
    [("create-concert") #:method "post" handle-create-concert]
-   
+
    [("edit-concert" (string-arg)) #:method "get" edit-concert-form]
    [("edit-concert" (string-arg)) #:method "post" handle-edit-concert]
-   
+
    [("cancel-concert" (string-arg)) #:method "get" handle-cancel-concert]
    [("restore-concert" (string-arg)) #:method "get" handle-restore-concert]
    [("delete-concert" (string-arg)) #:method "post" handle-delete-concert]
