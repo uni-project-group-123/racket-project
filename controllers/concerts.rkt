@@ -6,52 +6,40 @@
          handle-edit-concert
          handle-cancel-concert
          handle-restore-concert
-         handle-delete-concert)
+         handle-delete-concert
+         view-concert
+         handle-buy)
 
 (require "../utils/web-utils.rkt"
          "../models/concerts.rkt"
          "../utils/image-utils.rkt"
          "../database/db.rkt"
          db
-         web-server/http)
+         web-server/http
+         net/uri-codec
+         "home.rkt")
 
 ;; ---------- Helpers ----------
 (define (current-creator-id req)
   (define cid (get-cookie req "uid"))
   (if cid (string->number cid) 1))
 
-(define (extract-image-path req existing)
-  (define b (bindings-assq #"image" (request-bindings/raw req)))
-  (cond
-    [(and b (binding:file? b) (> (bytes-length (binding:file-content b)) 0))
-     (define file-bytes (binding:file-content b))
-     (define filename-bytes (binding:file-filename b))
-     (define filename (and filename-bytes (bytes->string/utf-8 filename-bytes)))
-     (define headers (binding:file-headers b))
-     (define content-type (for/or ([h headers])
-                            (and (header? h)
-                                 (string-ci=? (bytes->string/utf-8 (header-field h)) "Content-Type")
-                                 (bytes->string/utf-8 (header-value h)))) )
-     (define ct (or content-type "image/jpeg"))
-     (with-handlers ([exn:fail? (λ(e) (or existing ""))])
-       (save-uploaded-image file-bytes (or filename "upload.jpg") ct))]
-    [else (or existing "")]))
-
 ;; ---------- Create Form ----------
 (define (create-concert-form req)
   (render-page
    `(div
-     (h1 "Create New Concert")
-     (p ((class "lead")) "Fill out the details for your new concert listing.")
+     ,(home-top-bar req)
+     (h1 "Create Concert")
+     (p ((class "lead")) "Fill in the details to list your concert.")
      (form ((action "/create-concert") (method "post") (enctype "multipart/form-data"))
            (p (label "Concert Name:") (input ((name "name") (type "text") (required "required"))))
-           (p (label "Location:") (input ((name "location") (type "text") (required "required") (placeholder "e.g. The O2, London"))))
-           (p (label "Max Tickets to Sell:") (input ((name "max_tickets") (type "number") (required "required") (min "1"))))
-           (p (label "Ticket Price ($):") (input ((name "ticket_price") (type "number") (step "0.01") (required "required") (min "0"))))
+           (p (label "Location:") (input ((name "location") (type "text") (required "required"))))
+           (p (label "Max Tickets to Sell:") (input ((name "max_tickets") (type "number") (min "1") (required "required"))))
+           (p (label "Ticket Price ($):") (input ((name "ticket_price") (type "number") (step "0.01") (min "0") (required "required"))))
            (p (label "Date & Time:") (input ((name "date_time") (type "datetime-local") (required "required"))))
-           (p (label "Concert Image:") (input ((name "image") (type "file") (accept "image/png"))))
+           (p (label "Concert Image (PNG):") (input ((name "image") (type "file") (accept "image/png"))))
            (div ((class "actions"))
-                (button ((type "submit") (class "btn btn-primary")) "✅ Save")
+                (button ((type "submit") (class "btn btn-primary")) "✅ Create")
                 (a ((href "/creator-dashboard") (class "btn btn-outline")) "❌ Cancel"))))))
 
 ;; ---------- Handle Create ----------
@@ -64,27 +52,26 @@
   (define date-time (get-param req 'date_time))
   (define max-tickets (and max-tickets-str (string->number max-tickets-str)))
   (define ticket-price (and ticket-price-str (string->number ticket-price-str)))
-  ;; We'll save the image after we know the new concert ID
-  (define img-binding (bindings-assq #"image" (request-bindings/raw req)))
-  (if (or (not name) (not location) (not max-tickets) (not ticket-price) (not date-time)
-          (string=? name "") (string=? location "") (string=? date-time "")
-          (<= max-tickets 0) (< ticket-price 0))
+  (if (or (not name) (string=? name "")
+          (not location) (string=? location "")
+          (not date-time) (string=? date-time "")
+          (not max-tickets) (<= max-tickets 0)
+          (not ticket-price) (< ticket-price 0))
       (render-page
-       `(div (h1 "Error: Invalid input")
+       `(div ,(home-top-bar req)
+             (h1 "Error: Invalid input")
              (p "Please fill in all fields with valid values.")
-             (div ((class "actions"))
-                  (a ((href "/create-concert") (class "btn btn-outline")) "Back to form"))))
+             (div ((class "actions")) (a ((href "/create-concert") (class "btn btn-outline")) "Back to form"))))
       (with-handlers ([exn:fail?
-                       (λ(e)
+                       (λ (e)
                          (render-page
-                          `(div (h1 "Error creating concert")
-                                (p ,(format "~a" e))
-                                (div ((class "actions"))
-                                     (a ((href "/create-concert") (class "btn btn-outline")) "Back to form")))) )])
-        ;; 1) Insert without image_path
+                          `(div ,(home-top-bar req)
+                                (h1 "Error creating concert") (p ,(format "~a" e))
+                                (div ((class "actions")) (a ((href "/create-concert") (class "btn btn-outline")) "Back to form")))) )])
+        (define dbc (get-db))
         (db-create-concert! creator-id name max-tickets ticket-price location "" date-time)
-        ;; 2) Get new id and save file if provided
-        (define new-id (query-value (get-db) "SELECT last_insert_rowid();"))
+        (define new-id (query-value dbc "SELECT last_insert_rowid();"))
+        (define img-binding (bindings-assq #"image" (request-bindings/raw req)))
         (when (and img-binding (binding:file? img-binding) (> (bytes-length (binding:file-content img-binding)) 0))
           (define headers (binding:file-headers img-binding))
           (define content-type (for/or ([h headers])
@@ -94,19 +81,22 @@
           (define saved-path (save-concert-image-with-id (binding:file-content img-binding) content-type new-id))
           (db-set-concert-image-path! new-id saved-path))
         (render-page
-         `(div (h1 "Concert Created!")
-               (p ((class "lead")) "Your concert listing has been created successfully.")
+         `(div ,(home-top-bar req)
+               (h1 "Concert Created!")
+               (p ((class "lead")) "Your concert has been listed.")
                (div ((class "actions"))
-                    (a ((href "/creator-dashboard") (class "btn btn-primary")) "Back to Dashboard")))))))
+                    (a ((href "/creator-dashboard") (class "btn btn-primary")) "Back to Dashboard")
+                    (a ((href ,(format "/concert/~a" new-id)) (class "btn btn-outline")) "View Listing")))))))
 
 ;; ---------- Edit Form ----------
 (define (edit-concert-form req concert-id-str)
   (define cid (string->number concert-id-str))
   (define c (db-find-concert-by-id cid))
   (if (not c)
-      (render-page `(div (h1 "Concert not found") (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-outline")) "Back to Dashboard"))))
+      (render-page `(div ,(home-top-bar req) (h1 "Concert not found") (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-outline")) "Back to Dashboard"))))
       (render-page
        `(div
+         ,(home-top-bar req)
          (h1 "Edit Concert")
          (p ((class "lead")) "Update your concert details.")
          (form ((action ,(format "/edit-concert/~a" cid)) (method "post") (enctype "multipart/form-data"))
@@ -134,7 +124,6 @@
   (define date-time (get-param req 'date_time))
   (define max-tickets (and max-tickets-str (string->number max-tickets-str)))
   (define ticket-price (and ticket-price-str (string->number ticket-price-str)))
-  ;; Save new image if uploaded
   (define img-binding (bindings-assq #"image" (request-bindings/raw req)))
   (when (and img-binding (binding:file? img-binding) (> (bytes-length (binding:file-content img-binding)) 0))
     (define headers (binding:file-headers img-binding))
@@ -148,58 +137,142 @@
           (string=? name "") (string=? location "") (string=? date-time "")
           (<= max-tickets 0) (< ticket-price 0))
       (render-page
-       `(div (h1 "Error: Invalid input") (p "Please fill in all fields with valid values.")
+       `(div ,(home-top-bar req) (h1 "Error: Invalid input") (p "Please fill in all fields with valid values.")
              (div ((class "actions")) (a ((href ,(format "/edit-concert/~a" cid)) (class "btn btn-outline")) "Back to form"))))
       (with-handlers ([exn:fail?
-                       (λ(e)
+                       (λ (e)
                          (render-page
-                          `(div (h1 "Error updating concert") (p ,(format "~a" e))
+                          `(div ,(home-top-bar req) (h1 "Error updating concert") (p ,(format "~a" e))
                                 (div ((class "actions")) (a ((href ,(format "/edit-concert/~a" cid)) (class "btn btn-outline")) "Back to form")))) )])
-          (define status (if existing (concert-status existing) "active"))
-          ;; Keep current image_path as stored (possibly updated above)
-          (define kept (let ([c (db-find-concert-by-id cid)]) (if c (concert-image-path c) "")))
-          (db-update-concert! cid name max-tickets ticket-price location kept date-time status)
-        (render-page
-         `(div (h1 "Concert Updated!") (p ((class "lead")) "Your concert listing has been updated successfully.")
-               (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-primary")) "Back to Dashboard")))))))
+        (define status (if existing (concert-status existing) "active"))
+        (define kept (let ([c (db-find-concert-by-id cid)]) (if c (concert-image-path c) "")))
+        (db-update-concert! cid name max-tickets ticket-price location kept date-time status)
+        (render-page `(div ,(home-top-bar req) (h1 "Concert Updated!") (p ((class "lead")) "Your concert listing has been updated successfully.")
+                           (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-primary")) "Back to Dashboard")))))))
 
 ;; ---------- Cancel ----------
 (define (handle-cancel-concert req concert-id-str)
   (define cid (string->number concert-id-str))
   (with-handlers ([exn:fail?
-                   (λ(e)
+                   (λ (e)
                      (render-page
-                      `(div (h1 "Error cancelling concert") (p ,(format "~a" e))
+                      `(div ,(home-top-bar req) (h1 "Error cancelling concert") (p ,(format "~a" e))
                             (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-outline")) "Back to Dashboard")))) )])
     (db-cancel-concert! cid)
     (render-page
-     `(div (h1 "Concert Cancelled") (p ((class "lead")) "The concert has been marked as cancelled.")
+     `(div ,(home-top-bar req) (h1 "Concert Cancelled") (p ((class "lead")) "The concert has been marked as cancelled.")
            (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-primary")) "Back to Dashboard"))))))
 
 ;; ---------- Restore ----------
 (define (handle-restore-concert req concert-id-str)
   (define cid (string->number concert-id-str))
   (with-handlers ([exn:fail?
-                   (λ(e)
+                   (λ (e)
                      (render-page
-                      `(div (h1 "Error restoring concert") (p ,(format "~a" e))
+                      `(div ,(home-top-bar req) (h1 "Error restoring concert") (p ,(format "~a" e))
                             (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-outline")) "Back to Dashboard")))) )])
     (db-restore-concert! cid)
     (render-page
-     `(div (h1 "Concert Restored") (p ((class "lead")) "The concert has been marked as active again.")
+     `(div ,(home-top-bar req) (h1 "Concert Restored") (p ((class "lead")) "The concert has been marked as active again.")
            (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-primary")) "Back to Dashboard"))))))
 
 ;; ---------- Delete ----------
 (define (handle-delete-concert req concert-id-str)
   (define cid (string->number concert-id-str))
   (with-handlers ([exn:fail?
-                   (λ(e)
+                   (λ (e)
                      (render-page
-                      `(div (h1 "Error deleting concert") (p ,(format "~a" e))
+                      `(div ,(home-top-bar req) (h1 "Error deleting concert") (p ,(format "~a" e))
                             (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-outline")) "Back to Dashboard")))) )])
-    ;; Remove the image file first
-    (delete-concert-image! cid)
     (db-delete-concert! cid)
     (render-page
-     `(div (h1 "Concert Deleted") (p ((class "lead")) "The concert has been removed from your listings.")
+     `(div ,(home-top-bar req) (h1 "Concert Deleted")
            (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-primary")) "Back to Dashboard"))))))
+
+;; ---------- View (fan) ----------
+(define (view-concert req concert-id-str)
+  (define cid (string->number concert-id-str))
+  (define c (db-find-concert-by-id cid))
+  (define body-xpr
+    (if (not c)
+     `(div ,(home-top-bar req)
+        (h1 "Concert not found")
+        (div ((class "actions")) (a ((href "/") (class "btn btn-outline")) "Back")))
+     (let* ([sold (db-count-tickets-sold cid)]
+      [cap (concert-max-tickets-to-sell c)]
+      [remaining (- cap sold)]
+      [img-url (concert-image-url cid)])
+    (define action-x
+      (cond
+        [(string=? (concert-status c) "cancelled")
+      `(p ((class "notice")) "⚠️ This concert has been cancelled.")]
+        [(<= remaining 0)
+      `(p ((class "notice")) "Sold out.")]
+        [else
+      `(form ((action ,(format "/buy/~a" cid)) (method "post"))
+          (label "Quantity: ")
+          (input ((type "number") (name "qty") (min "1") (max ,(number->string remaining)) (value "1")))
+          (button ((type "submit") (class "btn btn-primary")) "Buy"))]))
+    `(div
+      ,(home-top-bar req)
+      (div ((class "concert-detail"))
+        (div ((class "media"))
+          (img ((src ,img-url)
+             (alt ,(string-append (concert-name c) " image"))
+             (class "concert-img"))))
+        (div ((class "info"))
+          (h1 ,(concert-name c))
+          (p ((class "location")) "📍 " ,(concert-location c))
+          (p ((class "date")) "🗓 " ,(concert-date-time c))
+          (p ((class "price")) "💰 $" ,(number->string (concert-ticket-price c)))
+          ,action-x))))))
+  (render-page body-xpr))
+
+;; ---------- Buy ----------
+(define (handle-buy req concert-id-str)
+  (define uid (get-cookie req "uid"))
+  (if (not uid)
+  (redirect-303 "/login")
+  (let* ([cid (string->number concert-id-str)]
+     [qty-str (get-param req 'qty)]
+     [qty (if qty-str (string->number qty-str) 1)]
+     [dbc (get-db)]
+     [c (db-find-concert-by-id cid)])
+    (cond
+      [(not c)
+       (render-page
+    `(div ,(home-top-bar req)
+      (h1 "Concert not found")
+      (div ((class "actions")) (a ((href "/") (class "btn btn-outline")) "Back"))))]
+      [else
+       (let* ([sold (db-count-tickets-sold cid)]
+      [cap (concert-max-tickets-to-sell c)]
+      [remaining (- cap sold)])
+     (cond
+       [(string=? (concert-status c) "cancelled")
+        (render-page
+         `(div ,(home-top-bar req)
+           (h1 "Concert is cancelled")
+           (div ((class "actions")) (a ((href ,(format "/concert/~a" cid)) (class "btn btn-outline")) "Back"))))]
+       [(<= remaining 0)
+        (render-page
+         `(div ,(home-top-bar req)
+           (h1 "Sold out")
+           (div ((class "actions")) (a ((href ,(format "/concert/~a" cid)) (class "btn btn-outline")) "Back"))))]
+       [(< remaining qty)
+        (render-page
+         `(div ,(home-top-bar req)
+           (h1 ,(format "Only ~a remaining" remaining))
+           (div ((class "actions")) (a ((href ,(format "/concert/~a" cid)) (class "btn btn-outline")) "Back"))))]
+       [else
+        (begin
+      (query-exec dbc
+          "INSERT INTO tickets (concert_id, buyer_id, qty, purchased_at) VALUES (?, ?, ?, datetime('now'));"
+          cid (string->number uid) qty)
+      (render-page
+       `(div ,(home-top-bar req)
+         (h1 "✅ Purchase complete")
+         (p ((class "lead")) "Your ticket has been added to your account.")
+         (div ((class "actions"))
+          (a ((href "/fan-dashboard") (class "btn btn-primary")) "Go to Dashboard")
+          (a ((href ,(format "/concert/~a" cid)) (class "btn btn-outline")) "Back to Concert")))))]))]))))

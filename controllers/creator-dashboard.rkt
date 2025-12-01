@@ -24,7 +24,7 @@
           (div ((class "user-info"))
                (h2 "🎶 Music Portal")
                (span ,(format "Welcome, ~a!" (or (and current-user (user-name current-user)) "Creator"))))
-          (a ((href "/browse") (class "btn btn-outline logout-btn")) "Browse Concerts")
+          (a ((href "/") (class "btn btn-outline logout-btn")) "Browse Concerts")
           (a ((href "/creator-settings") (class "btn btn-outline logout-btn")) "Account Settings")
           (a ((href "/logout") (class "btn btn-outline logout-btn")) "Logout"))
 

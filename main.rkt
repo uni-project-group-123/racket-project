@@ -4,6 +4,8 @@
          web-server/dispatch
          web-server/dispatchers/dispatch
          web-server/dispatchers/filesystem-map
+         web-server/http
+         racket/port
          racket/runtime-path
 
          "database/db.rkt"
@@ -21,6 +23,7 @@
 
 (define-values (dispatch dispatcher)
   (dispatch-rules
+  [("static" "images" (string-arg)) #:method "get" serve-png]
    [("") home-page]
 
    [("register") #:method "get" register-page]
@@ -46,6 +49,8 @@
    [("delete-concert" (string-arg)) #:method "post" handle-delete-concert]
 
    [("browse") #:method "get" browse]
+  [("concert" (string-arg)) #:method "get" view-concert]
+  [("buy" (string-arg)) #:method "post" handle-buy]
 
 
 
@@ -61,6 +66,22 @@
   (dispatch req))
 
 (define-runtime-path STATIC-DIR "static")
+
+;; Serve PNGs under /static/images/<name>.png directly as files
+(define (serve-png req fname)
+  (define path (build-path STATIC-DIR "images" fname))
+  (cond
+    [(and (regexp-match? #rx"\\.png$" fname)
+          (file-exists? path))
+     (response/output
+      #:code 200
+      #:message #"OK"
+      #:mime-type #"image/png"
+      (lambda (out)
+        (call-with-input-file path
+          (lambda (in)
+            (copy-port in out)))))]
+    [else (not-found-page req)]))
 
 (serve/servlet
  start
