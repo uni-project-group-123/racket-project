@@ -6,7 +6,9 @@
          "../models/users.rkt"
          "../models/concerts.rkt"
          "../utils/image-utils.rkt"
-         racket/string)
+         racket/string
+         web-server/http
+         net/url)
 
 ;; Reusable top bar which adapts to logged-in state via cookie
 (define (home-top-bar req)
@@ -35,7 +37,7 @@
   (define raw (concert-image-path concert))
   (cond
     [(and raw (not (string=? raw ""))
-         (or (string-prefix? raw "/static/") (string-prefix? raw "data:"))) raw]
+          (or (string-prefix? raw "/static/") (string-prefix? raw "data:"))) raw]
     ;; If raw path appears to be a filesystem path (contains backslash or drive letter), ignore it.
     [else (concert-image-url (concert-id concert))]))
 
@@ -60,7 +62,26 @@
       ,card))
 
 (define (home-page req)
-  (define all-concerts (db-get-all-concerts))
+  ;; Extract location from query string
+  (define selected-location
+    (let ([uri (request-uri req)])
+      (if (url-query uri)
+          (let* ([query (url-query uri)]
+                 ;; query is a list of (name . value) pairs where name is a symbol
+                 [pair (findf (λ (p)
+                                (eq? (car p) 'location))
+                              query)])
+            (if pair
+                (cdr pair)
+                #f))
+          #f)))
+
+  (define all-concerts
+    (if (and selected-location (not (string=? selected-location "")))
+        (db-find-concerts-by-location selected-location)
+        (db-get-all-concerts)))
+  (define locations (db-get-all-locations))
+
   (render-page
    `(div
      ,(home-top-bar req)
@@ -69,8 +90,20 @@
           (p ((class "lead")) "For fans and creators alike — jump in and explore."))
      (h1 "Browse All Concerts")
      (p ((class "lead")) "Discover upcoming concerts and events.")
+     (p "Filter by:")
+     (form ((method "get") (action "/"))
+           (div (label "Location:")
+                (select ((name "location") (onchange "this.form.submit()"))
+                        (option ((value "")) "All")
+                        ,@(map (λ (loc)
+                                 `(option ((value ,loc) ,@(if (string=? loc (or selected-location ""))
+                                                              '((selected "selected"))'())) ,loc))
+                               locations))))
      (div ((class "concert-grid"))
-          ,@(map home-browse-concert->card all-concerts)))))
+          ,@(if (null? all-concerts)
+                `((p "No concerts found for this location."))
+                (map home-browse-concert->card all-concerts))))))
+
 
 (define (not-found-page req)
   (render-page

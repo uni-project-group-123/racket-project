@@ -13,7 +13,6 @@
          "controllers/auth.rkt"
          "controllers/fan-dashboard.rkt"
          "controllers/creator-dashboard.rkt"
-         "controllers/browse.rkt"
          "controllers/concerts.rkt"
          "controllers/creator-settings.rkt")
 
@@ -23,7 +22,7 @@
 
 (define-values (dispatch dispatcher)
   (dispatch-rules
-  [("static" "images" (string-arg)) #:method "get" serve-png]
+   [("static" "images" (string-arg)) #:method "get" serve-png]
    [("") home-page]
 
    [("register") #:method "get" register-page]
@@ -48,9 +47,9 @@
    [("restore-concert" (string-arg)) #:method "get" handle-restore-concert]
    [("delete-concert" (string-arg)) #:method "post" handle-delete-concert]
 
-   [("browse") #:method "get" browse]
-  [("concert" (string-arg)) #:method "get" view-concert]
-  [("buy" (string-arg)) #:method "post" handle-buy]
+
+   [("concert" (string-arg)) #:method "get" view-concert]
+   [("buy" (string-arg)) #:method "post" handle-buy]
 
 
 
