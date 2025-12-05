@@ -2,7 +2,8 @@
 
 (provide creator-settings)
 
-(require "../utils/web-utils.rkt")
+(require "../utils/web-utils.rkt"
+         "../models/users.rkt")
 
 (define (creator-settings req)
   (render-page
@@ -11,7 +12,7 @@
      (h1 "Account Settings")
      (div ((class "nav"))
           (a ((href "#" ) (class "btn btn-outline")) "Selected Concerts")
-          (a ((href "/browse" ) (class "btn btn-outline")) "Browse Concerts")
+          (a ((href "/" ) (class "btn btn-outline")) "Browse Concerts")
           (a ((href "#" ) (class "btn btn-outline")) "Profile settings")
           (a ((href "/logout" ) (class "btn btn-primary")) "Sign Out"))
      )

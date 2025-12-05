@@ -4,6 +4,9 @@
          web-server/dispatch
          web-server/dispatchers/dispatch
          web-server/dispatchers/filesystem-map
+         web-server/http
+         web-server/safety-limits
+         racket/port
          racket/runtime-path
 
          "database/db.rkt"
@@ -11,9 +14,9 @@
          "controllers/auth.rkt"
          "controllers/fan-dashboard.rkt"
          "controllers/creator-dashboard.rkt"
-         "controllers/browse.rkt"
          "controllers/concerts.rkt"
-         "controllers/creator-settings.rkt")
+         "controllers/creator-settings.rkt"
+         "utils/security.rkt")
 
 ;; ============================
 ;;      ROUTING
@@ -21,6 +24,7 @@
 
 (define-values (dispatch dispatcher)
   (dispatch-rules
+   [("static" "images" (string-arg)) #:method "get" serve-png]
    [("") home-page]
 
    [("register") #:method "get" register-page]
@@ -30,6 +34,8 @@
    [("login") #:method "post" handle-login]
 
    [("fan-dashboard") #:method "get" fan-dashboard]
+   [("fan-dashboard" "selected-concerts") #:method "get" selected-concerts-page]
+   [("toggle-selected-concert") #:method "post" handle-toggle-selected-concert]
 
    [("creator-dashboard") #:method "get" creator-dashboard]
    [("creator-settings") #:method "get" creator-settings]
@@ -45,7 +51,9 @@
    [("restore-concert" (string-arg)) #:method "get" handle-restore-concert]
    [("delete-concert" (string-arg)) #:method "post" handle-delete-concert]
 
-   [("browse") #:method "get" browse]
+
+   [("concert" (string-arg)) #:method "get" view-concert]
+   [("buy" (string-arg)) #:method "post" handle-buy]
 
 
 
@@ -58,13 +66,48 @@
 (init-db)
 
 (define (start req)
-  (dispatch req))
+  (with-handlers ([exn:fail?
+                   (λ (e)
+                     (if (regexp-match? #rx"read-mime-multipart: file exceeds max length" (exn-message e))
+                         (response/xexpr
+                          `(html
+                            (head (title "Upload Error"))
+                            (body ((style "font-family: sans-serif; padding: 50px; text-align: center;"))
+                                  (h1 "File Too Large")
+                                  (p "The image you uploaded is too large. Please try a smaller file.")
+                                  (p (a ((href "javascript:history.back()")) "Go Back")))))
+                         (raise e)))])
+    (define access-result (check-access req))
+    (if (eq? access-result #t)
+        (dispatch req)
+        access-result)))
 
 (define-runtime-path STATIC-DIR "static")
+
+(define (serve-png req fname)
+  (define path (build-path STATIC-DIR "images" fname))
+  (cond
+    [(and (regexp-match? #rx"\\.png$" fname)
+          (file-exists? path))
+     (response/output
+      #:code 200
+      #:message #"OK"
+      #:mime-type #"image/png"
+      (lambda (out)
+        (call-with-input-file path
+          (lambda (in)
+            (copy-port in out)))))]
+    [else (not-found-page req)]))
+
+(define limits
+  (make-safety-limits
+   #:max-form-data-file-length 209715200
+   #:max-request-body-length 209715200))
 
 (serve/servlet
  start
  #:port 8080
  #:servlet-regexp #rx""
  #:launch-browser? #f
- #:extra-files-paths (list STATIC-DIR))
+ #:extra-files-paths (list STATIC-DIR)
+ #:safety-limits limits)
