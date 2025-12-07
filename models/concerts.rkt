@@ -17,7 +17,15 @@
          db-count-tickets-sold
          db-user-has-ticket?
          db-set-concert-image-path!
+<<<<<<< Updated upstream
          db-get-all-locations)
+=======
+         db-get-all-locations
+         db-add-selected-concert!
+         db-remove-selected-concert!
+         db-get-selected-concerts
+         db-user-has-selected-concert?)
+>>>>>>> Stashed changes
 
 (require "../database/db.rkt"
          db)
@@ -120,4 +128,41 @@
   (define rows
     (query-rows db
                 "SELECT DISTINCT location FROM concerts WHERE location IS NOT NULL AND location != '' ORDER BY location ASC;"))
+<<<<<<< Updated upstream
   (map (λ (r) (vector-ref r 0)) rows))
+=======
+  (map (λ (r) (vector-ref r 0)) rows))
+
+(define (db-add-selected-concert! user-id concert-id)
+  (define db (get-db))
+  (with-handlers ([exn:fail? (λ (e) (void))]) ; Ignore if already exists
+    (query-exec db
+                "INSERT INTO selected_concerts (user_id, concert_id) VALUES (?, ?);"
+                user-id concert-id)))
+
+(define (db-remove-selected-concert! user-id concert-id)
+  (define db (get-db))
+  (query-exec db
+              "DELETE FROM selected_concerts WHERE user_id = ? AND concert_id = ?;"
+              user-id concert-id))
+
+(define (db-get-selected-concerts user-id)
+  (define db (get-db))
+  (define rows
+    (query-rows db
+                "SELECT c.id, c.creator_id, c.name, c.max_tickets_to_sell, c.ticket_price, c.location, c.image_path, c.date_time, c.status
+                 FROM concerts c
+                 JOIN selected_concerts sc ON c.id = sc.concert_id
+                 WHERE sc.user_id = ?
+                 ORDER BY c.date_time ASC;"
+                user-id))
+  (map row->concert rows))
+
+(define (db-user-has-selected-concert? user-id concert-id)
+  (define db (get-db))
+  (define rows
+    (query-rows db
+                "SELECT 1 FROM selected_concerts WHERE user_id = ? AND concert_id = ?;"
+                user-id concert-id))
+  (not (null? rows)))
+>>>>>>> Stashed changes

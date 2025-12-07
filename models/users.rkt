@@ -5,9 +5,11 @@
          row->user
          db-create-user!
          db-find-user-by-name
-         db-find-user-by-id)
+         db-find-user-by-id
+         db-update-user-password!)
 
 (require "../database/db.rkt"
+         "../utils/crypto-utils.rkt"
          db)
 
 (struct user (id name password type) #:transparent)
@@ -22,7 +24,13 @@
   (query-exec db
     "INSERT INTO users (name, password, type)
      VALUES (?, ?, ?);"
-    name password type))
+    name (hash-password password) type))
+
+(define (db-update-user-password! id new-password)
+  (define db (get-db))
+  (query-exec db
+    "UPDATE users SET password = ? WHERE id = ?;"
+    new-password id))
 
 (define (db-find-user-by-name name)
   (define db (get-db))

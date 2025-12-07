@@ -2,7 +2,8 @@
 
 (provide creator-settings)
 
-(require "../utils/web-utils.rkt")
+(require "../utils/web-utils.rkt"
+         "../models/users.rkt")
 
 (define (creator-settings req)
   (render-page

@@ -41,9 +41,34 @@
     ;; If raw path appears to be a filesystem path (contains backslash or drive letter), ignore it.
     [else (concert-image-url (concert-id concert))]))
 
+<<<<<<< Updated upstream
 (define (home-browse-concert->card concert)
   (define img-url (normalize-concert-image concert))
   (define fallback-url (concert-image-url (concert-id concert)))
+=======
+(define (home-browse-concert->card concert current-user)
+  (define img-url (normalize-concert-image concert))
+  (define fallback-url (concert-image-url (concert-id concert)))
+  (define creator (db-find-user-by-id (concert-creator-id concert)))
+  (define creator-name (if creator (user-name creator) "Unknown"))
+  
+  (define is-fan (and current-user (string=? (user-type current-user) "fan")))
+  (define is-selected (and is-fan (db-user-has-selected-concert? (user-id current-user) (concert-id concert))))
+  
+  (define action-btn
+    (if is-fan
+        `(div ((class "concert-actions"))
+              (form ((method "post") (action "/toggle-selected-concert") (style "margin:0;"))
+                    (input ((type "hidden") (name "concert_id") (value ,(number->string (concert-id concert)))))
+                    (input ((type "hidden") (name "action") (value ,(if is-selected "remove" "add"))))
+                    (input ((type "hidden") (name "redirect") (value "/")))
+                    (button ((type "submit") 
+                             (class ,(if is-selected "action-btn delete-btn" "action-btn edit-btn")) 
+                             (title ,(if is-selected "Remove from list" "Add to list"))) 
+                            ,(if is-selected "−" "+"))))
+        ""))
+
+>>>>>>> Stashed changes
   (define card
     `(div ((class "concert-card"))
           (div ((class "concert-image"))
@@ -53,11 +78,20 @@
                      (loading "lazy")
                      (onerror ,(format "this.onerror=null;this.src='~a';" fallback-url)))))
           (div ((class "concert-info"))
+<<<<<<< Updated upstream
                (h3 ,(concert-name concert))
                (p ((class "location")) "📍 " ,(concert-location concert))
                (p ((class "date")) "🗓 " ,(concert-date-time concert))
                (p ((class "tickets")) "🎫 " ,(number->string (concert-max-tickets-to-sell concert)) " available")
                (p ((class "price")) "💰 $" ,(number->string (concert-ticket-price concert))))))
+=======
+               (h3 ,(string-append (concert-name concert) " - " creator-name))
+               (p ((class "location")) "📍 " ,(concert-location concert))
+               (p ((class "date")) "🗓 " ,(concert-date-time concert))
+               (p ((class "tickets")) "🎫 " ,(number->string (concert-max-tickets-to-sell concert)) " available")
+               (p ((class "price")) "💰 $" ,(number->string (concert-ticket-price concert))))
+          ,action-btn))
+>>>>>>> Stashed changes
   `(a ((href ,(format "/concert/~a" (concert-id concert))) (class "card-link"))
       ,card))
 
@@ -76,10 +110,21 @@
                 #f))
           #f)))
 
+<<<<<<< Updated upstream
   (define all-concerts
     (if (and selected-location (not (string=? selected-location "")))
         (db-find-concerts-by-location selected-location)
         (db-get-all-concerts)))
+=======
+  (define raw-id (get-cookie req "uid"))
+  (define current-user (and raw-id (db-find-user-by-id (string->number raw-id))))
+
+  (define all-concerts
+    (let ([concerts (if (and selected-location (not (string=? selected-location "")))
+                        (db-find-concerts-by-location selected-location)
+                        (db-get-all-concerts))])
+      (filter (λ (c) (not (string=? (concert-status c) "cancelled"))) concerts)))
+>>>>>>> Stashed changes
   (define locations (db-get-all-locations))
 
   (render-page
@@ -102,7 +147,11 @@
      (div ((class "concert-grid"))
           ,@(if (null? all-concerts)
                 `((p "No concerts found for this location."))
+<<<<<<< Updated upstream
                 (map home-browse-concert->card all-concerts))))))
+=======
+                (map (λ (c) (home-browse-concert->card c current-user)) all-concerts))))))
+>>>>>>> Stashed changes
 
 
 (define (not-found-page req)

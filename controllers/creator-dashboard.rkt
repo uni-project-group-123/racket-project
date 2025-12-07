@@ -11,11 +11,14 @@
 ;; =======================
 
 (define (creator-dashboard req)
-  ;; Determine current creator from cookie; fallback to id 1.
+  ;; Determine current creator from cookie
   (define raw-id (get-cookie req "uid"))
-  (define creator-id (if raw-id (string->number raw-id) 1))
-  (define user-concerts (db-find-concerts-by-creator creator-id))
+  ;; (check-access ensures we are logged in and are a creator)
+  
+  (define creator-id (string->number raw-id))
   (define current-user (db-find-user-by-id creator-id))
+  
+  (define user-concerts (db-find-concerts-by-creator creator-id))
 
   (render-page
    `(div
