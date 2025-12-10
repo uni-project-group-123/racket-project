@@ -18,11 +18,7 @@
      (h1 "Your Fan Dashboard")
      (p ((class "lead")) "Quick access to your upcoming concerts, saved events and profile settings.")
      (div ((class "nav"))
-<<<<<<< Updated upstream
-          (a ((href "#" ) (class "btn btn-outline")) "Selected Concerts")
-=======
           (a ((href "/fan-dashboard/selected-concerts" ) (class "btn btn-outline")) "Selected Concerts")
->>>>>>> Stashed changes
           (a ((href "/" ) (class "btn btn-outline")) "Browse Concerts")
           (a ((href "#" ) (class "btn btn-outline")) "Profile settings")
           (a ((href "/logout" ) (class "btn btn-primary")) "Sign Out")))))

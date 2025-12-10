@@ -12,7 +12,6 @@
 
 (require "../utils/web-utils.rkt"
          "../models/concerts.rkt"
-         "../models/users.rkt"
          "../utils/image-utils.rkt"
          "../database/db.rkt"
          db
@@ -23,19 +22,8 @@
 ;; ---------- Helpers ----------
 (define (current-creator-id req)
   (define cid (get-cookie req "uid"))
-  (and cid (string->number cid)))
+  (if cid (string->number cid) 1))
 
-<<<<<<< Updated upstream
-=======
-(define (require-concert-owner! req concert-id)
-  (define uid (current-creator-id req))
-  (unless uid (redirect-303 "/login"))
-  (define c (db-find-concert-by-id concert-id))
-  (unless c (redirect-303 "/creator-dashboard")) ;; Or 404
-  (unless (= (concert-creator-id c) uid)
-    (redirect-303 "/creator-dashboard"))) ;; Not authorized
-
->>>>>>> Stashed changes
 ;; ---------- Create Form ----------
 (define (create-concert-form req)
   (render-page
@@ -103,7 +91,6 @@
 ;; ---------- Edit Form ----------
 (define (edit-concert-form req concert-id-str)
   (define cid (string->number concert-id-str))
-  (require-concert-owner! req cid)
   (define c (db-find-concert-by-id cid))
   (if (not c)
       (render-page `(div ,(home-top-bar req) (h1 "Concert not found") (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-outline")) "Back to Dashboard"))))
@@ -129,7 +116,6 @@
 ;; ---------- Handle Edit ----------
 (define (handle-edit-concert req concert-id-str)
   (define cid (string->number concert-id-str))
-  (require-concert-owner! req cid)
   (define existing (db-find-concert-by-id cid))
   (define name (get-param req 'name))
   (define location (get-param req 'location))
@@ -167,7 +153,6 @@
 ;; ---------- Cancel ----------
 (define (handle-cancel-concert req concert-id-str)
   (define cid (string->number concert-id-str))
-  (require-concert-owner! req cid)
   (with-handlers ([exn:fail?
                    (λ (e)
                      (render-page
@@ -181,7 +166,6 @@
 ;; ---------- Restore ----------
 (define (handle-restore-concert req concert-id-str)
   (define cid (string->number concert-id-str))
-  (require-concert-owner! req cid)
   (with-handlers ([exn:fail?
                    (λ (e)
                      (render-page
@@ -195,7 +179,6 @@
 ;; ---------- Delete ----------
 (define (handle-delete-concert req concert-id-str)
   (define cid (string->number concert-id-str))
-  (require-concert-owner! req cid)
   (with-handlers ([exn:fail?
                    (λ (e)
                      (render-page

@@ -5,10 +5,7 @@
          web-server/dispatchers/dispatch
          web-server/dispatchers/filesystem-map
          web-server/http
-<<<<<<< Updated upstream
-=======
          web-server/safety-limits
->>>>>>> Stashed changes
          racket/port
          racket/runtime-path
 
@@ -87,10 +84,6 @@
 
 (define-runtime-path STATIC-DIR "static")
 
-<<<<<<< Updated upstream
-;; Serve PNGs under /static/images/<name>.png directly as files
-=======
->>>>>>> Stashed changes
 (define (serve-png req fname)
   (define path (build-path STATIC-DIR "images" fname))
   (cond
@@ -106,14 +99,11 @@
             (copy-port in out)))))]
     [else (not-found-page req)]))
 
-<<<<<<< Updated upstream
-=======
 (define limits
   (make-safety-limits
    #:max-form-data-file-length 209715200
    #:max-request-body-length 209715200))
 
->>>>>>> Stashed changes
 (serve/servlet
  start
  #:port 8080
