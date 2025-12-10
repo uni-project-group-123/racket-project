@@ -7,6 +7,7 @@
 
 (define (creator-settings req)
   (render-page
+   #:request req
    '(div
      (div ((class "nav")))
      (h1 "Account Settings")

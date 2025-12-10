@@ -27,6 +27,7 @@
 ;; ---------- Create Form ----------
 (define (create-concert-form req)
   (render-page
+   #:request req
    `(div
      ,(home-top-bar req)
      (h1 "Create Concert")
@@ -58,6 +59,7 @@
           (not max-tickets) (<= max-tickets 0)
           (not ticket-price) (< ticket-price 0))
       (render-page
+       #:request req
        `(div ,(home-top-bar req)
              (h1 "Error: Invalid input")
              (p "Please fill in all fields with valid values.")
@@ -65,6 +67,7 @@
       (with-handlers ([exn:fail?
                        (λ (e)
                          (render-page
+                          #:request req
                           `(div ,(home-top-bar req)
                                 (h1 "Error creating concert") (p ,(format "~a" e))
                                 (div ((class "actions")) (a ((href "/create-concert") (class "btn btn-outline")) "Back to form")))) )])
@@ -81,6 +84,7 @@
           (define saved-path (save-concert-image-with-id (binding:file-content img-binding) content-type new-id))
           (db-set-concert-image-path! new-id saved-path))
         (render-page
+         #:request req
          `(div ,(home-top-bar req)
                (h1 "Concert Created!")
                (p ((class "lead")) "Your concert has been listed.")
@@ -93,8 +97,9 @@
   (define cid (string->number concert-id-str))
   (define c (db-find-concert-by-id cid))
   (if (not c)
-      (render-page `(div ,(home-top-bar req) (h1 "Concert not found") (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-outline")) "Back to Dashboard"))))
+      (render-page #:request req `(div ,(home-top-bar req) (h1 "Concert not found") (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-outline")) "Back to Dashboard"))))
       (render-page
+       #:request req
        `(div
          ,(home-top-bar req)
          (h1 "Edit Concert")
@@ -137,17 +142,19 @@
           (string=? name "") (string=? location "") (string=? date-time "")
           (<= max-tickets 0) (< ticket-price 0))
       (render-page
+       #:request req
        `(div ,(home-top-bar req) (h1 "Error: Invalid input") (p "Please fill in all fields with valid values.")
              (div ((class "actions")) (a ((href ,(format "/edit-concert/~a" cid)) (class "btn btn-outline")) "Back to form"))))
       (with-handlers ([exn:fail?
                        (λ (e)
                          (render-page
+                          #:request req
                           `(div ,(home-top-bar req) (h1 "Error updating concert") (p ,(format "~a" e))
                                 (div ((class "actions")) (a ((href ,(format "/edit-concert/~a" cid)) (class "btn btn-outline")) "Back to form")))) )])
         (define status (if existing (concert-status existing) "active"))
         (define kept (let ([c (db-find-concert-by-id cid)]) (if c (concert-image-path c) "")))
         (db-update-concert! cid name max-tickets ticket-price location kept date-time status)
-        (render-page `(div ,(home-top-bar req) (h1 "Concert Updated!") (p ((class "lead")) "Your concert listing has been updated successfully.")
+        (render-page #:request req `(div ,(home-top-bar req) (h1 "Concert Updated!") (p ((class "lead")) "Your concert listing has been updated successfully.")
                            (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-primary")) "Back to Dashboard")))))))
 
 ;; ---------- Cancel ----------
@@ -156,10 +163,12 @@
   (with-handlers ([exn:fail?
                    (λ (e)
                      (render-page
+                      #:request req
                       `(div ,(home-top-bar req) (h1 "Error cancelling concert") (p ,(format "~a" e))
                             (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-outline")) "Back to Dashboard")))) )])
     (db-cancel-concert! cid)
     (render-page
+     #:request req
      `(div ,(home-top-bar req) (h1 "Concert Cancelled") (p ((class "lead")) "The concert has been marked as cancelled.")
            (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-primary")) "Back to Dashboard"))))))
 
@@ -169,10 +178,12 @@
   (with-handlers ([exn:fail?
                    (λ (e)
                      (render-page
+                      #:request req
                       `(div ,(home-top-bar req) (h1 "Error restoring concert") (p ,(format "~a" e))
                             (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-outline")) "Back to Dashboard")))) )])
     (db-restore-concert! cid)
     (render-page
+     #:request req
      `(div ,(home-top-bar req) (h1 "Concert Restored") (p ((class "lead")) "The concert has been marked as active again.")
            (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-primary")) "Back to Dashboard"))))))
 
@@ -182,10 +193,12 @@
   (with-handlers ([exn:fail?
                    (λ (e)
                      (render-page
+                      #:request req
                       `(div ,(home-top-bar req) (h1 "Error deleting concert") (p ,(format "~a" e))
                             (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-outline")) "Back to Dashboard")))) )])
     (db-delete-concert! cid)
     (render-page
+     #:request req
      `(div ,(home-top-bar req) (h1 "Concert Deleted")
            (div ((class "actions")) (a ((href "/creator-dashboard") (class "btn btn-primary")) "Back to Dashboard"))))))
 
@@ -201,7 +214,16 @@
      (let* ([sold (db-count-tickets-sold cid)]
       [cap (concert-max-tickets-to-sell c)]
       [remaining (- cap sold)]
-      [img-url (concert-image-url cid)])
+      [img-url (concert-image-url cid)]
+      [source (or (get-param req 'source) "home")]
+      [back-link (cond
+                   [(string=? source "bought") "/fan-dashboard/tickets-bought"]
+                   [(string=? source "selected") "/fan-dashboard/selected-concerts"]
+                   [else "/"])]
+      [back-text (cond
+                   [(string=? source "bought") "← Back to Tickets"]
+                   [(string=? source "selected") "← Back to Selected"]
+                   [else "← Back to Concerts"])])
     (define action-x
       (cond
         [(string=? (concert-status c) "cancelled")
@@ -215,6 +237,7 @@
           (button ((type "submit") (class "btn btn-primary")) "Buy"))]))
     `(div
       ,(home-top-bar req)
+      (a ((href ,back-link) (class "back-btn")) ,back-text)
       (div ((class "concert-detail"))
         (div ((class "media"))
           (img ((src ,img-url)
@@ -222,11 +245,12 @@
              (class "concert-img"))))
         (div ((class "info"))
           (h1 ,(concert-name c))
+          (p ((class "artist-name")) "🎤 " ,(concert-artist-name c))
           (p ((class "location")) "📍 " ,(concert-location c))
-          (p ((class "date")) "🗓 " ,(concert-date-time c))
+          (p ((class "date")) "🗓 " ,(format-datetime (concert-date-time c)))
           (p ((class "price")) "💰 $" ,(number->string (concert-ticket-price c)))
           ,action-x))))))
-  (render-page body-xpr))
+  (render-page #:request req body-xpr))
 
 ;; ---------- Buy ----------
 (define (handle-buy req concert-id-str)
@@ -241,6 +265,7 @@
     (cond
       [(not c)
        (render-page
+        #:request req
     `(div ,(home-top-bar req)
       (h1 "Concert not found")
       (div ((class "actions")) (a ((href "/") (class "btn btn-outline")) "Back"))))]
@@ -251,25 +276,36 @@
      (cond
        [(string=? (concert-status c) "cancelled")
         (render-page
+         #:request req
          `(div ,(home-top-bar req)
            (h1 "Concert is cancelled")
            (div ((class "actions")) (a ((href ,(format "/concert/~a" cid)) (class "btn btn-outline")) "Back"))))]
        [(<= remaining 0)
         (render-page
+         #:request req
          `(div ,(home-top-bar req)
            (h1 "Sold out")
            (div ((class "actions")) (a ((href ,(format "/concert/~a" cid)) (class "btn btn-outline")) "Back"))))]
        [(< remaining qty)
-        (render-page
-         `(div ,(home-top-bar req)
-           (h1 ,(format "Only ~a remaining" remaining))
-           (div ((class "actions")) (a ((href ,(format "/concert/~a" cid)) (class "btn btn-outline")) "Back"))))]
+        (begin
+          (query-exec dbc
+              "INSERT INTO tickets (concert_id, buyer_id, qty, purchased_at) VALUES (?, ?, ?, datetime('now'));"
+              cid (string->number uid) remaining)
+          (render-page
+           #:request req
+           `(div ,(home-top-bar req)
+             (h1 "Partial Purchase")
+             (p ((class "lead")) ,(format "You requested ~a tickets, but only ~a were available. You have purchased ~a tickets." qty remaining remaining))
+             (div ((class "actions"))
+              (a ((href "/fan-dashboard") (class "btn btn-primary")) "Go to Dashboard")
+              (a ((href ,(format "/concert/~a" cid)) (class "btn btn-outline")) "Back to Concert")))))]
        [else
         (begin
       (query-exec dbc
           "INSERT INTO tickets (concert_id, buyer_id, qty, purchased_at) VALUES (?, ?, ?, datetime('now'));"
           cid (string->number uid) qty)
       (render-page
+       #:request req
        `(div ,(home-top-bar req)
          (h1 "✅ Purchase complete")
          (p ((class "lead")) "Your ticket has been added to your account.")

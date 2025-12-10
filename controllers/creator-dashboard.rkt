@@ -21,6 +21,7 @@
   (define user-concerts (db-find-concerts-by-creator creator-id))
 
   (render-page
+   #:request req
    `(div
      ;; Header with user info and logout
      (div ((class "dashboard-header"))
@@ -45,6 +46,9 @@
 
 ;; Helper function to convert concert to card HTML
 (define (concert->card concert)
+  (define sold (db-count-tickets-sold (concert-id concert)))
+  (define cap (concert-max-tickets-to-sell concert))
+  (define remaining (- cap sold))
   `(div ((class ,(format "concert-card ~a" (if (string=? (concert-status concert) "cancelled") "cancelled" ""))))
         (div ((class "concert-image")
               (style ,(format "background-image:url('~a');" (concert-image-url (concert-id concert))))))
@@ -53,9 +57,10 @@
              "")
         (div ((class "concert-info"))
              (h3 ,(concert-name concert))
+             (p ((class "artist-name")) "🎤 " ,(concert-artist-name concert))
              (p ((class "location")) "📍 " ,(concert-location concert))
-             (p ((class "date")) "🗓 " ,(concert-date-time concert))
-             (p ((class "tickets")) "🎫 " ,(number->string (concert-max-tickets-to-sell concert)) " sold")
+             (p ((class "date")) "🗓 " ,(format-datetime (concert-date-time concert)))
+             (p ((class "tickets")) "🎫 " ,(number->string remaining) " available")
              (p ((class "price")) "💰 $" ,(number->string (concert-ticket-price concert))))
         (div ((class "concert-actions"))
              (a ((href ,(format "/edit-concert/~a" (concert-id concert)))

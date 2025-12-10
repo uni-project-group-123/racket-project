@@ -20,6 +20,7 @@
   (if (get-cookie req "uid")
       (redirect-303 "/")
       (render-page
+       #:request req
        `(div
          (h1 "Create an account")
          (p ((class "lead")) "Join Music Portal — create an account as a fan or creator.")
@@ -48,6 +49,7 @@
     [(or (not name) (not password) (not type)
          (string=? name "") (string=? password "") (string=? type ""))
      (render-page
+      #:request req
       `(div
         (h1 "Error: fill in all fields")
         (div ((class "actions"))
@@ -57,6 +59,7 @@
      (with-handlers ([exn:fail?
                       (λ(e)
                         (render-page
+                         #:request req
                          `(div
                            (h1 "Error: user already exists?")
                            (div ((class "actions"))
@@ -80,6 +83,7 @@
   (if (get-cookie req "uid")
       (redirect-303 "/")
       (render-page
+       #:request req
        `(div
          (h1 "Log in")
          (p ((class "lead")) "Welcome back — enter your credentials to continue.")
@@ -103,6 +107,7 @@
   (cond
     [(not u)
      (render-page
+      #:request req
       `(div
         (h1 "User not found")
         (div ((class "actions"))
@@ -110,6 +115,7 @@
 
     [(not (string=? (hash-password password) (user-password u)))
      (render-page
+      #:request req
       `(div
         (h1 "Incorrect password")
         (div ((class "actions"))

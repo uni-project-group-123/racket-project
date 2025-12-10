@@ -3,7 +3,7 @@
 (provide concert?
          concert-id concert-creator-id concert-name
          concert-max-tickets-to-sell concert-ticket-price
-         concert-location concert-image-path concert-date-time concert-status
+         concert-location concert-image-path concert-date-time concert-status concert-artist-name
          row->concert
          db-create-concert!
          db-find-concerts-by-creator
@@ -21,18 +21,19 @@
          db-add-selected-concert!
          db-remove-selected-concert!
          db-get-selected-concerts
-         db-user-has-selected-concert?)
+         db-user-has-selected-concert?
+         db-get-bought-concerts)
 
 (require "../database/db.rkt"
          db)
 
 (struct concert (id creator-id name max-tickets-to-sell
-                    ticket-price location image-path date-time status) #:transparent)
+                    ticket-price location image-path date-time status artist-name) #:transparent)
 
 (define (row->concert row)
   (match row
-    [(vector id creator-id name max-tickets ticket-price location image-path date-time status)
-     (concert id creator-id name max-tickets ticket-price location image-path date-time status)]))
+    [(vector id creator-id name max-tickets ticket-price location image-path date-time status artist-name)
+     (concert id creator-id name max-tickets ticket-price location image-path date-time status artist-name)]))
 
 (define (db-create-concert! creator-id name max-tickets ticket-price location image-path date-time)
   (define db (get-db))
@@ -45,8 +46,10 @@
   (define db (get-db))
   (define rows
     (query-rows db
-                "SELECT id, creator_id, name, max_tickets_to_sell, ticket_price, location, image_path, date_time, status
-       FROM concerts WHERE creator_id = ?;"
+                "SELECT c.id, c.creator_id, c.name, c.max_tickets_to_sell, c.ticket_price, c.location, c.image_path, c.date_time, c.status, u.name
+       FROM concerts c
+       JOIN users u ON c.creator_id = u.id
+       WHERE c.creator_id = ?;"
                 creator-id))
   (map row->concert rows))
 
@@ -54,8 +57,10 @@
   (define db (get-db))
   (define rows
     (query-rows db
-                "SELECT id, creator_id, name, max_tickets_to_sell, ticket_price, location, image_path, date_time, status
-       FROM concerts WHERE id = ?;"
+                "SELECT c.id, c.creator_id, c.name, c.max_tickets_to_sell, c.ticket_price, c.location, c.image_path, c.date_time, c.status, u.name
+       FROM concerts c
+       JOIN users u ON c.creator_id = u.id
+       WHERE c.id = ?;"
                 concert-id))
   (if (null? rows)
       #f
@@ -90,16 +95,20 @@
   (define db (get-db))
   (define rows
     (query-rows db
-                "SELECT id, creator_id, name, max_tickets_to_sell, ticket_price, location, image_path, date_time, status
-       FROM concerts ORDER BY date_time ASC;"))
+                "SELECT c.id, c.creator_id, c.name, c.max_tickets_to_sell, c.ticket_price, c.location, c.image_path, c.date_time, c.status, u.name
+       FROM concerts c
+       JOIN users u ON c.creator_id = u.id
+       ORDER BY c.date_time ASC;"))
   (map row->concert rows))
 
 (define (db-find-concerts-by-location location)
   (define db (get-db))
   (define rows
     (query-rows db
-                "SELECT id, creator_id, name, max_tickets_to_sell, ticket_price, location, image_path, date_time, status
-       FROM concerts WHERE location = ? ORDER BY date_time ASC;"
+                "SELECT c.id, c.creator_id, c.name, c.max_tickets_to_sell, c.ticket_price, c.location, c.image_path, c.date_time, c.status, u.name
+       FROM concerts c
+       JOIN users u ON c.creator_id = u.id
+       WHERE c.location = ? ORDER BY c.date_time ASC;"
                 location))
   (map row->concert rows))
 
@@ -143,9 +152,10 @@
   (define db (get-db))
   (define rows
     (query-rows db
-                "SELECT c.id, c.creator_id, c.name, c.max_tickets_to_sell, c.ticket_price, c.location, c.image_path, c.date_time, c.status
+                "SELECT c.id, c.creator_id, c.name, c.max_tickets_to_sell, c.ticket_price, c.location, c.image_path, c.date_time, c.status, u.name
                  FROM concerts c
                  JOIN selected_concerts sc ON c.id = sc.concert_id
+                 JOIN users u ON c.creator_id = u.id
                  WHERE sc.user_id = ?
                  ORDER BY c.date_time ASC;"
                 user-id))
@@ -158,3 +168,16 @@
                 "SELECT 1 FROM selected_concerts WHERE user_id = ? AND concert_id = ?;"
                 user-id concert-id))
   (not (null? rows)))
+
+(define (db-get-bought-concerts user-id)
+  (define db (get-db))
+  (define rows
+    (query-rows db
+                "SELECT DISTINCT c.id, c.creator_id, c.name, c.max_tickets_to_sell, c.ticket_price, c.location, c.image_path, c.date_time, c.status, u.name
+                 FROM concerts c
+                 JOIN tickets t ON c.id = t.concert_id
+                 JOIN users u ON c.creator_id = u.id
+                 WHERE t.buyer_id = ?
+                 ORDER BY c.date_time ASC;"
+                user-id))
+  (map row->concert rows))

@@ -35,7 +35,9 @@
 
    [("fan-dashboard") #:method "get" fan-dashboard]
    [("fan-dashboard" "selected-concerts") #:method "get" selected-concerts-page]
+   [("fan-dashboard" "tickets-bought") #:method "get" tickets-bought-page]
    [("toggle-selected-concert") #:method "post" handle-toggle-selected-concert]
+   [("toggle-theme") #:method "get" handle-toggle-theme]
 
    [("creator-dashboard") #:method "get" creator-dashboard]
    [("creator-settings") #:method "get" creator-settings]

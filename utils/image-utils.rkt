@@ -5,17 +5,26 @@
          concert-image-url
          delete-concert-image!
          get-image-url
-         validate-image-type)
+         validate-image-type
+         normalize-concert-image)
 
 (require web-server/http
          file/sha1
-         racket/runtime-path)
+         racket/runtime-path
+         racket/string)
 
 (define-runtime-path IMAGES-DIR "../static/images")
 (define UPLOAD-URL-PREFIX "/static/images/")
 ;; We enforce PNG only throughout the app.
 ;; Any non-PNG upload will be rejected by validate-image-type.
 ;; All saved files use the .png extension and URLs resolve only .png.
+
+(define (normalize-concert-image raw-path concert-id)
+  (cond
+    [(and raw-path (not (string=? raw-path ""))
+          (or (string-prefix? raw-path "/static/") (string-prefix? raw-path "data:"))) raw-path]
+    ;; If raw path appears to be a filesystem path (contains backslash or drive letter), ignore it.
+    [else (concert-image-url concert-id)]))
 
 (define (concert-filename* concert-id ext)
   (format "concert_~a~a" concert-id ext))
