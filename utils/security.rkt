@@ -7,7 +7,7 @@
          web-server/http/request-structs
          net/url
          racket/string)
-
+; Comment 
 ;; Format: (cons regex-pattern required-role)
 ;; Roles: "creator", "fan", "guest" (only for non-logged in)
 (define security-rules
@@ -15,6 +15,8 @@
    ;; Creator routes
    (cons #rx"^/creator-dashboard" "creator")
    (cons #rx"^/creator-settings" "creator")
+   (cons #rx"^/update-username" "creator")
+   (cons #rx"^/update-password" "creator")
    (cons #rx"^/create-concert" "creator")
    (cons #rx"^/edit-concert" "creator")
    (cons #rx"^/cancel-concert" "creator")
