@@ -2,7 +2,8 @@
 
 (provide get-db init-db)
 
-(require db)
+(require db
+         "../utils/crypto-utils.rkt")
 
 (define db-conn
   (sqlite3-connect
@@ -45,6 +46,15 @@
        FOREIGN KEY(concert_id) REFERENCES concerts(id),
        FOREIGN KEY(buyer_id) REFERENCES users(id)
      )")
+
+  (query-exec db-conn
+    "CREATE TABLE IF NOT EXISTS selected_concerts (
+       user_id INTEGER NOT NULL,
+       concert_id INTEGER NOT NULL,
+       PRIMARY KEY (user_id, concert_id),
+       FOREIGN KEY(user_id) REFERENCES users(id),
+       FOREIGN KEY(concert_id) REFERENCES concerts(id)
+     )")
   
   (with-handlers ([exn:fail? (λ (e) #f)])
     (query-exec db-conn
@@ -54,4 +64,12 @@
   
   (with-handlers ([exn:fail? (λ (e) #f)])
     (query-exec db-conn
-      "INSERT INTO users (id, name, password, type) VALUES (1, 'TestCreator', 'password123', 'creator');")))
+      "INSERT INTO users (id, name, password, type) VALUES (1, 'TestCreator', ?, 'creator');"
+      (hash-password "password123")))
+
+  ;; Migrate plain text passwords to hashes
+  (define all-users (query-rows db-conn "SELECT id, password FROM users"))
+  (for ([row all-users])
+    (match-define (vector uid pwd) row)
+    (when (not (= (string-length pwd) 40))
+      (query-exec db-conn "UPDATE users SET password = ? WHERE id = ?" (hash-password pwd) uid))))

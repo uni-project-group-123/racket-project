@@ -5,17 +5,26 @@
          concert-image-url
          delete-concert-image!
          get-image-url
-         validate-image-type)
+         validate-image-type
+         normalize-concert-image)
 
 (require web-server/http
          file/sha1
-         racket/runtime-path)
+         racket/runtime-path
+         racket/string)
 
 (define-runtime-path IMAGES-DIR "../static/images")
 (define UPLOAD-URL-PREFIX "/static/images/")
 ;; We enforce PNG only throughout the app.
 ;; Any non-PNG upload will be rejected by validate-image-type.
 ;; All saved files use the .png extension and URLs resolve only .png.
+
+(define (normalize-concert-image raw-path concert-id)
+  (cond
+    [(and raw-path (not (string=? raw-path ""))
+          (or (string-prefix? raw-path "/static/") (string-prefix? raw-path "data:"))) raw-path]
+    ;; If raw path appears to be a filesystem path (contains backslash or drive letter), ignore it.
+    [else (concert-image-url concert-id)]))
 
 (define (concert-filename* concert-id ext)
   (format "concert_~a~a" concert-id ext))
@@ -92,7 +101,8 @@
 (define (get-image-url image-path)
   (if (and image-path (not (string=? image-path "")))
       image-path
-      "/static/images/default-concert.png")) ; domyślny obraz
+      ;; Properly URL-encoded inline SVG placeholder (avoids angle bracket parsing issues)
+      "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='600'%20height='400'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='0'%20x2='1'%20y2='1'%3E%3Cstop%20stop-color='%23f1f5f9'%20offset='0'/%3E%3Cstop%20stop-color='%23e2e8f0'%20offset='1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width='600'%20height='400'%20fill='url(%23g)'/%3E%3Ctext%20x='50%'%20y='50%'%20dominant-baseline='middle'%20text-anchor='middle'%20font-family='Segoe%20UI,%20Arial'%20font-size='28'%20fill='%236b46ff'%3EConcert%3C/text%3E%3C/svg%3E")) ; default inline placeholder
 
 ;; Pomocnicza funkcja do wyciągnięcia danych z multipart form
 (define (extract-file-from-binding binding)
