@@ -14,6 +14,8 @@
          db-delete-concert!
          db-get-all-concerts
          db-find-concerts-by-location
+         db-find-concerts-by-name
+         db-find-concerts-by-price-range
          db-count-tickets-sold
          db-user-has-ticket?
          db-set-concert-image-path!
@@ -97,6 +99,24 @@
                 "SELECT id, creator_id, name, max_tickets_to_sell, ticket_price, location, image_path, date_time, status
        FROM concerts WHERE location = ? ORDER BY date_time ASC;"
                 location))
+  (map row->concert rows))
+
+(define (db-find-concerts-by-name name)
+  (define db (get-db))
+  (define rows
+    (query-rows db
+                "SELECT id, creator_id, name, max_tickets_to_sell, ticket_price, location, image_path, date_time, status
+       FROM concerts WHERE name LIKE ? ORDER BY date_time ASC;"
+                (string-append "%" name "%")))
+  (map row->concert rows))
+
+(define (db-find-concerts-by-price-range min-price max-price)
+  (define db (get-db))
+  (define rows
+    (query-rows db
+                "SELECT id, creator_id, name, max_tickets_to_sell, ticket_price, location, image_path, date_time, status
+       FROM concerts WHERE ticket_price >= ? AND ticket_price <= ? ORDER BY date_time ASC;"
+                min-price max-price))
   (map row->concert rows))
 
 ;; ---------- Ticket helpers ----------

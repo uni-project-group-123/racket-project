@@ -62,24 +62,54 @@
       ,card))
 
 (define (home-page req)
-  ;; Extract location from query string
+  ;; Extract filters from query string
   (define selected-location
     (let ([uri (request-uri req)])
       (if (url-query uri)
-          (let* ([query (url-query uri)]
-                 ;; query is a list of (name . value) pairs where name is a symbol
-                 [pair (findf (λ (p)
-                                (eq? (car p) 'location))
-                              query)])
-            (if pair
-                (cdr pair)
-                #f))
+          (let ([pair (findf (λ (p) (eq? (car p) 'location)) (url-query uri))])
+            (if pair (cdr pair) #f))
           #f)))
 
-  (define all-concerts
+  (define selected-band-name
+    (let ([uri (request-uri req)])
+      (if (url-query uri)
+          (let ([pair (findf (λ (p) (eq? (car p) 'band)) (url-query uri))])
+            (if pair (cdr pair) #f))
+          #f)))
+
+  (define selected-price-range
+    (let ([uri (request-uri req)])
+      (if (url-query uri)
+          (let ([pair (findf (λ (p) (eq? (car p) 'price)) (url-query uri))])
+            (if pair (cdr pair) #f))
+          #f)))
+
+  ;; Start with all concerts and apply filters
+  (define base-concerts (db-get-all-concerts))
+  (define by-location
     (if (and selected-location (not (string=? selected-location "")))
-        (db-find-concerts-by-location selected-location)
-        (db-get-all-concerts)))
+        (filter (λ (c) (string=? (concert-location c) selected-location)) base-concerts)
+        base-concerts))
+
+  (define by-band
+    (if (and selected-band-name (not (string=? selected-band-name "")))
+        (filter (λ (c) (string-contains? (string-downcase (concert-name c))
+                                         (string-downcase selected-band-name)))
+                by-location)
+        by-location))
+
+  (define all-concerts
+    (if (and selected-price-range (not (string=? selected-price-range "")))
+        (let ([range-parts (string-split selected-price-range "-")])
+          (if (= (length range-parts) 2)
+              (let ([min-price (string->number (first range-parts))]
+                    [max-price (string->number (second range-parts))])
+                (filter (λ (c) (and (>= (concert-ticket-price c) min-price)
+                                    (<= (concert-ticket-price c) max-price)))
+                        by-band))
+              by-band))
+        by-band))
+
   (define locations (db-get-all-locations))
 
   (render-page
@@ -96,13 +126,39 @@
                 (select ((name "location") (onchange "this.form.submit()"))
                         (option ((value "")) "All")
                         ,@(map (λ (loc)
-                                 `(option ((value ,loc) ,@(if (string=? loc (or selected-location ""))
-                                                              '((selected "selected"))'())) ,loc))
-                               locations))))
-     (div ((class "concert-grid"))
-          ,@(if (null? all-concerts)
-                `((p "No concerts found for this location."))
-                (map home-browse-concert->card all-concerts))))))
+                                 `(option ((value ,loc) ,@(if (and selected-location (string=? loc selected-location))
+                                                              '((selected "selected"))
+                                                              '()))
+                                          ,loc))
+                               locations)))
+           (div (label "Band Name:")
+                (input ((type "text") (name "band") (placeholder "Search band name...")
+                                      (value ,(or selected-band-name ""))
+                                      (onchange "this.form.submit()"))))
+           (div (label "Price Range:")
+                (select ((name "price") (onchange "this.form.submit()"))
+                        (option ((value "")) "All")
+                        (option ((value "0-50") ,@(if (and selected-price-range (string=? selected-price-range "0-50"))
+                                                      '((selected "selected"))
+                                                      '())) "$0 - $50")
+                        (option ((value "50-100") ,@(if (and selected-price-range (string=? selected-price-range "50-100"))
+                                                        '((selected "selected"))
+                                                        '())) "$50 - $100")
+                        (option ((value "100-200") ,@(if (and selected-price-range (string=? selected-price-range "100-200"))
+                                                         '((selected "selected"))
+                                                         '())) "$100 - $200")
+                        (option ((value "200-500") ,@(if (and selected-price-range (string=? selected-price-range "200-500"))
+                                                         '((selected "selected"))
+                                                         '())) "$200 - $500")
+                        (option ((value "500-10000") ,@(if (and selected-price-range (string=? selected-price-range "500-10000"))
+                                                           '((selected "selected"))
+                                                           '())) "$500+")))
+
+           (div ((class "concert-grid"))
+                ,@(if (null? all-concerts)
+                      `((p "No concerts found matching your filters."))
+                      (map home-browse-concert->card all-concerts))))
+     )))
 
 
 (define (not-found-page req)
