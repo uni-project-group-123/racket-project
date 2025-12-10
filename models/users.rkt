@@ -6,7 +6,8 @@
          db-create-user!
          db-find-user-by-name
          db-find-user-by-id
-         db-update-user-password!)
+         db-update-user-password!
+         db-update-username!)
 
 (require "../database/db.rkt"
          "../utils/crypto-utils.rkt"
@@ -31,6 +32,12 @@
   (query-exec db
     "UPDATE users SET password = ? WHERE id = ?;"
     new-password id))
+
+(define (db-update-username! id new-name)
+  (define db (get-db))
+  (query-exec db
+    "UPDATE users SET name = ? WHERE id = ?;"
+    new-name id))
 
 (define (db-find-user-by-name name)
   (define db (get-db))
