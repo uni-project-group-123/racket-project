@@ -41,6 +41,8 @@
 
    [("creator-dashboard") #:method "get" creator-dashboard]
    [("creator-settings") #:method "get" creator-settings]
+   [("update-username") #:method "post" handle-update-username]
+   [("update-password") #:method "post" handle-update-password]
    [("logout") #:method "get" handle-logout]
 
    [("create-concert") #:method "get" create-concert-form]
