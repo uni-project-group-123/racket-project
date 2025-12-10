@@ -17,15 +17,11 @@
          db-count-tickets-sold
          db-user-has-ticket?
          db-set-concert-image-path!
-<<<<<<< Updated upstream
-         db-get-all-locations)
-=======
          db-get-all-locations
          db-add-selected-concert!
          db-remove-selected-concert!
          db-get-selected-concerts
          db-user-has-selected-concert?)
->>>>>>> Stashed changes
 
 (require "../database/db.rkt"
          db)
@@ -128,9 +124,6 @@
   (define rows
     (query-rows db
                 "SELECT DISTINCT location FROM concerts WHERE location IS NOT NULL AND location != '' ORDER BY location ASC;"))
-<<<<<<< Updated upstream
-  (map (λ (r) (vector-ref r 0)) rows))
-=======
   (map (λ (r) (vector-ref r 0)) rows))
 
 (define (db-add-selected-concert! user-id concert-id)
@@ -165,4 +158,3 @@
                 "SELECT 1 FROM selected_concerts WHERE user_id = ? AND concert_id = ?;"
                 user-id concert-id))
   (not (null? rows)))
->>>>>>> Stashed changes

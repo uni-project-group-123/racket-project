@@ -41,34 +41,9 @@
     ;; If raw path appears to be a filesystem path (contains backslash or drive letter), ignore it.
     [else (concert-image-url (concert-id concert))]))
 
-<<<<<<< Updated upstream
 (define (home-browse-concert->card concert)
   (define img-url (normalize-concert-image concert))
   (define fallback-url (concert-image-url (concert-id concert)))
-=======
-(define (home-browse-concert->card concert current-user)
-  (define img-url (normalize-concert-image concert))
-  (define fallback-url (concert-image-url (concert-id concert)))
-  (define creator (db-find-user-by-id (concert-creator-id concert)))
-  (define creator-name (if creator (user-name creator) "Unknown"))
-  
-  (define is-fan (and current-user (string=? (user-type current-user) "fan")))
-  (define is-selected (and is-fan (db-user-has-selected-concert? (user-id current-user) (concert-id concert))))
-  
-  (define action-btn
-    (if is-fan
-        `(div ((class "concert-actions"))
-              (form ((method "post") (action "/toggle-selected-concert") (style "margin:0;"))
-                    (input ((type "hidden") (name "concert_id") (value ,(number->string (concert-id concert)))))
-                    (input ((type "hidden") (name "action") (value ,(if is-selected "remove" "add"))))
-                    (input ((type "hidden") (name "redirect") (value "/")))
-                    (button ((type "submit") 
-                             (class ,(if is-selected "action-btn delete-btn" "action-btn edit-btn")) 
-                             (title ,(if is-selected "Remove from list" "Add to list"))) 
-                            ,(if is-selected "−" "+"))))
-        ""))
-
->>>>>>> Stashed changes
   (define card
     `(div ((class "concert-card"))
           (div ((class "concert-image"))
@@ -78,53 +53,63 @@
                      (loading "lazy")
                      (onerror ,(format "this.onerror=null;this.src='~a';" fallback-url)))))
           (div ((class "concert-info"))
-<<<<<<< Updated upstream
                (h3 ,(concert-name concert))
                (p ((class "location")) "📍 " ,(concert-location concert))
                (p ((class "date")) "🗓 " ,(concert-date-time concert))
                (p ((class "tickets")) "🎫 " ,(number->string (concert-max-tickets-to-sell concert)) " available")
                (p ((class "price")) "💰 $" ,(number->string (concert-ticket-price concert))))))
-=======
-               (h3 ,(string-append (concert-name concert) " - " creator-name))
-               (p ((class "location")) "📍 " ,(concert-location concert))
-               (p ((class "date")) "🗓 " ,(concert-date-time concert))
-               (p ((class "tickets")) "🎫 " ,(number->string (concert-max-tickets-to-sell concert)) " available")
-               (p ((class "price")) "💰 $" ,(number->string (concert-ticket-price concert))))
-          ,action-btn))
->>>>>>> Stashed changes
   `(a ((href ,(format "/concert/~a" (concert-id concert))) (class "card-link"))
       ,card))
 
 (define (home-page req)
-  ;; Extract location from query string
+  ;; Extract filters from query string
   (define selected-location
     (let ([uri (request-uri req)])
       (if (url-query uri)
-          (let* ([query (url-query uri)]
-                 ;; query is a list of (name . value) pairs where name is a symbol
-                 [pair (findf (λ (p)
-                                (eq? (car p) 'location))
-                              query)])
-            (if pair
-                (cdr pair)
-                #f))
+          (let ([pair (findf (λ (p) (eq? (car p) 'location)) (url-query uri))])
+            (if pair (cdr pair) #f))
           #f)))
 
-<<<<<<< Updated upstream
-  (define all-concerts
+  (define selected-band-name
+    (let ([uri (request-uri req)])
+      (if (url-query uri)
+          (let ([pair (findf (λ (p) (eq? (car p) 'band)) (url-query uri))])
+            (if pair (cdr pair) #f))
+          #f)))
+
+  (define selected-price-range
+    (let ([uri (request-uri req)])
+      (if (url-query uri)
+          (let ([pair (findf (λ (p) (eq? (car p) 'price)) (url-query uri))])
+            (if pair (cdr pair) #f))
+          #f)))
+
+  ;; Start with all concerts and apply filters
+  (define base-concerts (db-get-all-concerts))
+  (define by-location
     (if (and selected-location (not (string=? selected-location "")))
-        (db-find-concerts-by-location selected-location)
-        (db-get-all-concerts)))
-=======
-  (define raw-id (get-cookie req "uid"))
-  (define current-user (and raw-id (db-find-user-by-id (string->number raw-id))))
+        (filter (λ (c) (string=? (concert-location c) selected-location)) base-concerts)
+        base-concerts))
+
+  (define by-band
+    (if (and selected-band-name (not (string=? selected-band-name "")))
+        (filter (λ (c) (string-contains? (string-downcase (concert-name c))
+                                         (string-downcase selected-band-name)))
+                by-location)
+        by-location))
 
   (define all-concerts
-    (let ([concerts (if (and selected-location (not (string=? selected-location "")))
-                        (db-find-concerts-by-location selected-location)
-                        (db-get-all-concerts))])
-      (filter (λ (c) (not (string=? (concert-status c) "cancelled"))) concerts)))
->>>>>>> Stashed changes
+    (if (and selected-price-range (not (string=? selected-price-range "")))
+        (let ([range-parts (string-split selected-price-range "-")])
+          (if (= (length range-parts) 2)
+              (let ([min-price (string->number (first range-parts))]
+                    [max-price (string->number (second range-parts))])
+                (filter (λ (c) (and (>= (concert-ticket-price c) min-price)
+                                    (<= (concert-ticket-price c) max-price)))
+                        by-band))
+              by-band))
+        by-band))
+
   (define locations (db-get-all-locations))
 
   (render-page
@@ -141,17 +126,39 @@
                 (select ((name "location") (onchange "this.form.submit()"))
                         (option ((value "")) "All")
                         ,@(map (λ (loc)
-                                 `(option ((value ,loc) ,@(if (string=? loc (or selected-location ""))
-                                                              '((selected "selected"))'())) ,loc))
-                               locations))))
-     (div ((class "concert-grid"))
-          ,@(if (null? all-concerts)
-                `((p "No concerts found for this location."))
-<<<<<<< Updated upstream
-                (map home-browse-concert->card all-concerts))))))
-=======
-                (map (λ (c) (home-browse-concert->card c current-user)) all-concerts))))))
->>>>>>> Stashed changes
+                                 `(option ((value ,loc) ,@(if (and selected-location (string=? loc selected-location))
+                                                              '((selected "selected"))
+                                                              '()))
+                                          ,loc))
+                               locations)))
+           (div (label "Band Name:")
+                (input ((type "text") (name "band") (placeholder "Search band name...")
+                                      (value ,(or selected-band-name ""))
+                                      (onchange "this.form.submit()"))))
+           (div (label "Price Range:")
+                (select ((name "price") (onchange "this.form.submit()"))
+                        (option ((value "")) "All")
+                        (option ((value "0-50") ,@(if (and selected-price-range (string=? selected-price-range "0-50"))
+                                                      '((selected "selected"))
+                                                      '())) "$0 - $50")
+                        (option ((value "50-100") ,@(if (and selected-price-range (string=? selected-price-range "50-100"))
+                                                        '((selected "selected"))
+                                                        '())) "$50 - $100")
+                        (option ((value "100-200") ,@(if (and selected-price-range (string=? selected-price-range "100-200"))
+                                                         '((selected "selected"))
+                                                         '())) "$100 - $200")
+                        (option ((value "200-500") ,@(if (and selected-price-range (string=? selected-price-range "200-500"))
+                                                         '((selected "selected"))
+                                                         '())) "$200 - $500")
+                        (option ((value "500-10000") ,@(if (and selected-price-range (string=? selected-price-range "500-10000"))
+                                                           '((selected "selected"))
+                                                           '())) "$500+")))
+
+           (div ((class "concert-grid"))
+                ,@(if (null? all-concerts)
+                      `((p "No concerts found matching your filters."))
+                      (map home-browse-concert->card all-concerts))))
+     )))
 
 
 (define (not-found-page req)
